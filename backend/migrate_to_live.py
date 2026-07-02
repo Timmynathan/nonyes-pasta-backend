@@ -43,7 +43,6 @@ PRODUCTS = [
     {'name': "Nonye's Penne Alfredo Pasta",                      'category': 'alfredo',    'price': 8000,  'slug': 'nonyes-penne-alfredo-pasta',                      'image': 'products/alfredo_pasta.png'},
     {'name': "Nonye's Shrimp Alfredo Fettuccine Pasta",          'category': 'alfredo',    'price': 12500, 'slug': 'nonyes-shrimp-alfredo-fettuccine-pasta',          'image': 'products/shrimp_alfredo_pasta.png'},
     {'name': "Nonye's Beef Lasagna",                             'category': 'lasagna',    'price': 10500, 'slug': 'nonyes-beef-lasagna',                             'image': 'products/beef_lasagna.png'},
-    {'name': "Nonye's Soup Dumpling Lasagna",                    'category': 'lasagna',    'price': 8000,  'slug': 'nonyes-soup-dumpling-lasagna',                    'image': ''},
     {'name': "Nonye's Vodka Rigatoni",                           'category': 'rigatoni',   'price': 9500,  'slug': 'nonyes-vodka-rigatoni',                           'image': 'products/vodka_rigatoni.png'},
     {'name': "Nonye's Stir-fry Pasta",                           'category': 'stir-fry',   'price': 7500,  'slug': 'nonyes-stir-fry-pasta',                           'image': 'products/stirfry_pasta.png'},
     {'name': "Nonye's Nigerian Native Spaghetti",                'category': 'native',     'price': 7500,  'slug': 'nonyes-nigerian-native-spaghetti',                'image': 'products/native_pasta.png'},

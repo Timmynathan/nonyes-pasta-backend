@@ -102,7 +102,8 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
 }
 
-if config('CLOUDINARY_CLOUD_NAME', default=''):
+USE_CLOUDINARY = config('USE_CLOUDINARY', default=False, cast=bool)
+if USE_CLOUDINARY:
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     MEDIA_URL = f"https://res.cloudinary.com/{config('CLOUDINARY_CLOUD_NAME')}/"
 else:

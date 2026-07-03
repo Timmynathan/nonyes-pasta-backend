@@ -3,6 +3,8 @@ import hmac
 import json
 import uuid
 
+import requests
+
 from django.conf import settings
 from django.core.mail import send_mail
 from django.views.decorators.csrf import csrf_exempt

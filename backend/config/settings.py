@@ -144,6 +144,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_TIMEOUT = 10  # fail fast — some hosts block outbound SMTP and would otherwise hang
 DEFAULT_FROM_EMAIL = config('EMAIL_HOST_USER', default='')
 OWNER_EMAIL = config('OWNER_EMAIL', default='')
 

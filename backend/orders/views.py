@@ -165,12 +165,11 @@ class PaystackWebhookView(APIView):
         customer_email = pending.email
         pending.delete()
 
-        # Notify Nonye by Telegram + email — must never break order creation
+        # Notify Nonye — must never break order creation or the webhook response
         try:
             _send_owner_notification(order, customer_email, item_lines)
-        except Exception as e:
-            import traceback
-            return Response({'detail': 'Order created, notify failed', 'error': traceback.format_exc()}, status=200)
+        except Exception:
+            pass
 
         return Response({'detail': 'Order created.'}, status=200)
 
@@ -197,6 +196,9 @@ TOTAL PAID   : ₦{order.total:,.0f}
 
 Payment confirmed via Paystack. Reference: {order.paystack_reference}
 """
+    # Telegram first — it uses HTTPS and works even where outbound SMTP is blocked
+    _send_telegram(message)
+
     if owner_emails:
         try:
             send_mail(
@@ -208,8 +210,6 @@ Payment confirmed via Paystack. Reference: {order.paystack_reference}
             )
         except Exception:
             pass
-
-    _send_telegram(message)
 
 
 def _send_telegram(message):

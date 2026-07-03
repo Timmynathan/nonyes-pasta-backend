@@ -229,13 +229,20 @@ def _send_telegram(message):
         pass
 
 
-# ── Legacy endpoints kept for order tracking page ──────────────────────────
+# ── Order tracking ─────────────────────────────────────────────────────────
 
-class OrderDetailView(generics.RetrieveAPIView):
-    queryset = Order.objects.all()
-    serializer_class = OrderSerializer
+class OrderDetailView(APIView):
+    """Look up an order by its order_number OR its Paystack reference."""
     permission_classes = [permissions.AllowAny]
-    lookup_field = 'order_number'
+
+    def get(self, request, order_number):
+        from django.db.models import Q
+        order = Order.objects.filter(
+            Q(order_number=order_number) | Q(paystack_reference=order_number)
+        ).first()
+        if not order:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(OrderSerializer(order).data)
 
 
 class MyOrdersView(generics.ListAPIView):

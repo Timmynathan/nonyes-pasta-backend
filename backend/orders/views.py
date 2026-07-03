@@ -19,7 +19,15 @@ from . import paystack
 from .models import Order, OrderItem, PendingOrder
 from .serializers import OrderSerializer
 
-DELIVERY_FEE = 1500
+DELIVERY_FEES = {
+    'island': 3500,
+    'mainland': 5000,
+}
+DEFAULT_ZONE = 'mainland'
+
+
+def get_delivery_fee(zone):
+    return DELIVERY_FEES.get(zone, DELIVERY_FEES[DEFAULT_ZONE])
 
 
 class InitiateCheckoutView(APIView):
@@ -36,6 +44,7 @@ class InitiateCheckoutView(APIView):
         delivery_name = data.get('delivery_name', '').strip()
         delivery_phone = data.get('delivery_phone', '').strip()
         delivery_address = data.get('delivery_address', '').strip()
+        delivery_zone = data.get('delivery_zone', DEFAULT_ZONE)
         cart = data.get('cart', [])
 
         if not all([email, delivery_name, delivery_phone, delivery_address, cart]):
@@ -61,7 +70,8 @@ class InitiateCheckoutView(APIView):
             unit_price = float(unit_price) + sum(float(a.price) for a in add_ons)
             subtotal += unit_price * item.get('quantity', 1)
 
-        total = subtotal + DELIVERY_FEE
+        delivery_fee = get_delivery_fee(delivery_zone)
+        total = subtotal + delivery_fee
         reference = f"NP-{uuid.uuid4().hex[:12]}"
 
         PendingOrder.objects.create(
@@ -70,6 +80,7 @@ class InitiateCheckoutView(APIView):
             delivery_name=delivery_name,
             delivery_phone=delivery_phone,
             delivery_address=delivery_address,
+            delivery_zone=delivery_zone,
             cart=cart,
         )
 
@@ -118,11 +129,12 @@ class PaystackWebhookView(APIView):
             return Response({'detail': 'Pending order not found.'}, status=404)
 
         # Create the real order
+        delivery_fee = get_delivery_fee(pending.delivery_zone)
         order = Order.objects.create(
             delivery_name=pending.delivery_name,
             delivery_phone=pending.delivery_phone,
             delivery_address=pending.delivery_address,
-            delivery_fee=DELIVERY_FEE,
+            delivery_fee=delivery_fee,
             status=Order.STATUS_PAID,
             paystack_reference=reference,
         )
@@ -161,7 +173,7 @@ class PaystackWebhookView(APIView):
             item_lines.append(f"  • {qty}x {product.name}{size_label}{spice_label} — ₦{line_total:,.0f}")
 
         order.subtotal = subtotal
-        order.total = subtotal + DELIVERY_FEE
+        order.total = subtotal + delivery_fee
         order.save()
 
         customer_email = pending.email

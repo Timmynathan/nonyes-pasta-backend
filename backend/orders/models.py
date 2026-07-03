@@ -13,6 +13,7 @@ class PendingOrder(models.Model):
     delivery_name = models.CharField(max_length=150)
     delivery_phone = models.CharField(max_length=20)
     delivery_address = models.CharField(max_length=255)
+    delivery_zone = models.CharField(max_length=20, default='mainland')
     cart = models.JSONField()  # list of {product_id, size_id, add_on_ids, quantity, spice_level}
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -22,42 +22,6 @@ from .serializers import OrderSerializer
 DELIVERY_FEE = 1500
 
 
-class DebugConfigView(APIView):
-    """TEMPORARY — reports what env config the live server sees. Remove after debugging."""
-    permission_classes = [permissions.AllowAny]
-
-    def get(self, request):
-        import sys
-        tok = settings.TELEGRAM_BOT_TOKEN
-        chat = settings.TELEGRAM_CHAT_ID
-        result = {
-            'python_version': sys.version,
-            'telegram_token_set': bool(tok),
-            'telegram_token_len': len(tok),
-            'telegram_token_preview': (tok[:8] + '...' + tok[-4:]) if tok else '',
-            'telegram_chat_set': bool(chat),
-            'telegram_chat_value': repr(chat),
-            'owner_email': repr(settings.OWNER_EMAIL),
-            'email_host_user_set': bool(settings.EMAIL_HOST_USER),
-        }
-        # Run the REAL notification function on the latest order and report any hidden error
-        import traceback
-        last = Order.objects.order_by('-created_at').first()
-        if last:
-            lines = []
-            for it in last.items.all():
-                pname = it.product.name if it.product else 'Unknown'
-                lines.append(f'  - {it.quantity}x {pname}')
-            try:
-                _send_owner_notification(last, 'debug@example.com', lines)
-                result['notification_ran'] = 'OK — check Telegram'
-            except Exception:
-                result['notification_error'] = traceback.format_exc()
-        else:
-            result['notification_ran'] = 'no orders to test with'
-        return Response(result)
-
-
 class InitiateCheckoutView(APIView):
     """
     Validates the cart, stores details in PendingOrder, initialises a

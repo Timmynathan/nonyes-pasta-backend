@@ -165,8 +165,12 @@ class PaystackWebhookView(APIView):
         customer_email = pending.email
         pending.delete()
 
-        # Notify Nonye by Telegram + email
-        _send_owner_notification(order, customer_email, item_lines)
+        # Notify Nonye by Telegram + email — must never break order creation
+        try:
+            _send_owner_notification(order, customer_email, item_lines)
+        except Exception as e:
+            import traceback
+            return Response({'detail': 'Order created, notify failed', 'error': traceback.format_exc()}, status=200)
 
         return Response({'detail': 'Order created.'}, status=200)
 

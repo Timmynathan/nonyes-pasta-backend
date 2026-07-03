@@ -20,6 +20,35 @@ from .serializers import OrderSerializer
 DELIVERY_FEE = 1500
 
 
+class DebugConfigView(APIView):
+    """TEMPORARY — reports what env config the live server sees. Remove after debugging."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        tok = settings.TELEGRAM_BOT_TOKEN
+        chat = settings.TELEGRAM_CHAT_ID
+        result = {
+            'telegram_token_set': bool(tok),
+            'telegram_token_len': len(tok),
+            'telegram_token_preview': (tok[:8] + '...' + tok[-4:]) if tok else '',
+            'telegram_chat_set': bool(chat),
+            'telegram_chat_value': repr(chat),
+            'owner_email': repr(settings.OWNER_EMAIL),
+            'email_host_user_set': bool(settings.EMAIL_HOST_USER),
+        }
+        # Try an actual send and report the outcome
+        if tok and chat:
+            try:
+                import requests as _rq
+                r = _rq.post(f'https://api.telegram.org/bot{tok}/sendMessage',
+                             json={'chat_id': chat, 'text': '🔧 Live server config check'}, timeout=10)
+                result['live_send_status'] = r.status_code
+                result['live_send_body'] = r.text[:300]
+            except Exception as e:
+                result['live_send_error'] = str(e)
+        return Response(result)
+
+
 class InitiateCheckoutView(APIView):
     """
     Validates the cart, stores details in PendingOrder, initialises a

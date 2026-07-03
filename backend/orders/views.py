@@ -228,17 +228,19 @@ Payment confirmed via Paystack. Reference: {order.paystack_reference}
 
 def _send_telegram(message):
     token = settings.TELEGRAM_BOT_TOKEN
-    chat_id = settings.TELEGRAM_CHAT_ID
-    if not token or not chat_id:
+    if not token:
         return
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={'chat_id': chat_id, 'text': message},
-            timeout=10,
-        )
-    except Exception:
-        pass
+    # TELEGRAM_CHAT_ID may be a single id or a comma-separated list of ids
+    chat_ids = [c.strip() for c in str(settings.TELEGRAM_CHAT_ID).split(',') if c.strip()]
+    for chat_id in chat_ids:
+        try:
+            requests.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={'chat_id': chat_id, 'text': message},
+                timeout=10,
+            )
+        except Exception:
+            pass
 
 
 # ── Order tracking ─────────────────────────────────────────────────────────

@@ -171,7 +171,8 @@ class PaystackWebhookView(APIView):
 
 
 def _send_owner_notification(order, customer_email, item_lines):
-    owner_email = settings.OWNER_EMAIL
+    # OWNER_EMAIL may be a single address or a comma-separated list
+    owner_emails = [e.strip() for e in settings.OWNER_EMAIL.split(',') if e.strip()]
 
     items_text = '\n'.join(item_lines)
     message = f"""New order received! 🎉
@@ -191,13 +192,13 @@ TOTAL PAID   : ₦{order.total:,.0f}
 
 Payment confirmed via Paystack. Reference: {order.paystack_reference}
 """
-    if owner_email:
+    if owner_emails:
         try:
             send_mail(
                 subject=f"[Nonye's Pasta] New Order — {order.order_number}",
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[owner_email],
+                recipient_list=owner_emails,
                 fail_silently=True,
             )
         except Exception:

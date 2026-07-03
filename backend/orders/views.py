@@ -172,8 +172,6 @@ class PaystackWebhookView(APIView):
 
 def _send_owner_notification(order, customer_email, item_lines):
     owner_email = settings.OWNER_EMAIL
-    if not owner_email:
-        return
 
     items_text = '\n'.join(item_lines)
     message = f"""New order received! 🎉
@@ -193,13 +191,31 @@ TOTAL PAID   : ₦{order.total:,.0f}
 
 Payment confirmed via Paystack. Reference: {order.paystack_reference}
 """
+    if owner_email:
+        try:
+            send_mail(
+                subject=f"[Nonye's Pasta] New Order — {order.order_number}",
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[owner_email],
+                fail_silently=True,
+            )
+        except Exception:
+            pass
+
+    _send_telegram(message)
+
+
+def _send_telegram(message):
+    token = settings.TELEGRAM_BOT_TOKEN
+    chat_id = settings.TELEGRAM_CHAT_ID
+    if not token or not chat_id:
+        return
     try:
-        send_mail(
-            subject=f"[Nonye's Pasta] New Order — {order.order_number}",
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[owner_email],
-            fail_silently=True,
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={'chat_id': chat_id, 'text': message},
+            timeout=10,
         )
     except Exception:
         pass

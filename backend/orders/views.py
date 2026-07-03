@@ -36,16 +36,18 @@ class DebugConfigView(APIView):
             'owner_email': repr(settings.OWNER_EMAIL),
             'email_host_user_set': bool(settings.EMAIL_HOST_USER),
         }
-        # Try an actual send and report the outcome
-        if tok and chat:
+        # Run the REAL notification function on the latest order and report any hidden error
+        import traceback
+        last = Order.objects.order_by('-created_at').first()
+        if last:
+            lines = [f'  • {it.quantity}x {it.product.name if it.product else \"?\"}' for it in last.items.all()]
             try:
-                import requests as _rq
-                r = _rq.post(f'https://api.telegram.org/bot{tok}/sendMessage',
-                             json={'chat_id': chat, 'text': '🔧 Live server config check'}, timeout=10)
-                result['live_send_status'] = r.status_code
-                result['live_send_body'] = r.text[:300]
-            except Exception as e:
-                result['live_send_error'] = str(e)
+                _send_owner_notification(last, 'debug@example.com', lines)
+                result['notification_ran'] = 'OK — check Telegram'
+            except Exception:
+                result['notification_error'] = traceback.format_exc()
+        else:
+            result['notification_ran'] = 'no orders to test with'
         return Response(result)
 
 

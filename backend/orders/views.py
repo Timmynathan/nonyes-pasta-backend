@@ -162,10 +162,11 @@ class PaystackWebhookView(APIView):
         order.total = subtotal + DELIVERY_FEE
         order.save()
 
+        customer_email = pending.email
         pending.delete()
 
-        # Notify Nonye by email
-        _send_owner_notification(order, pending.email, item_lines)
+        # Notify Nonye by Telegram + email
+        _send_owner_notification(order, customer_email, item_lines)
 
         return Response({'detail': 'Order created.'}, status=200)
 

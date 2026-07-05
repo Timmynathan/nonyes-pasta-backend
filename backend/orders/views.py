@@ -19,15 +19,22 @@ from . import paystack
 from .models import Order, OrderItem, PendingOrder
 from .serializers import OrderSerializer
 
-DELIVERY_FEES = {
-    'island': 3500,
-    'mainland': 5000,
-}
-DEFAULT_ZONE = 'mainland'
+from .delivery import get_delivery_fee, DELIVERY_ZONES
 
 
-def get_delivery_fee(zone):
-    return DELIVERY_FEES.get(zone, DELIVERY_FEES[DEFAULT_ZONE])
+class DeliveryZonesView(APIView):
+    """Returns the grouped delivery zones + fees for the checkout UI."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        data = [
+            {
+                'group': z['group'],
+                'locations': [{'name': name, 'fee': fee} for name, fee in z['locations']],
+            }
+            for z in DELIVERY_ZONES
+        ]
+        return Response(data)
 
 
 class InitiateCheckoutView(APIView):
@@ -44,8 +51,11 @@ class InitiateCheckoutView(APIView):
         delivery_name = data.get('delivery_name', '').strip()
         delivery_phone = data.get('delivery_phone', '').strip()
         delivery_address = data.get('delivery_address', '').strip()
-        delivery_zone = data.get('delivery_zone', DEFAULT_ZONE)
+        delivery_zone = data.get('delivery_zone', '').strip()
         cart = data.get('cart', [])
+
+        if not delivery_zone:
+            return Response({'detail': 'Please select a delivery location.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not all([email, delivery_name, delivery_phone, delivery_address, cart]):
             return Response({'detail': 'All fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -134,6 +144,7 @@ class PaystackWebhookView(APIView):
             delivery_name=pending.delivery_name,
             delivery_phone=pending.delivery_phone,
             delivery_address=pending.delivery_address,
+            delivery_area=pending.delivery_zone,
             delivery_fee=delivery_fee,
             status=Order.STATUS_PAID,
             paystack_reference=reference,
@@ -199,6 +210,7 @@ Order Number : {order.order_number}
 Customer     : {order.delivery_name}
 Phone        : {order.delivery_phone}
 Email        : {customer_email}
+Area         : {order.delivery_area}
 Address      : {order.delivery_address}
 
 Items:

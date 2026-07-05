@@ -13,7 +13,7 @@ class PendingOrder(models.Model):
     delivery_name = models.CharField(max_length=150)
     delivery_phone = models.CharField(max_length=20)
     delivery_address = models.CharField(max_length=255)
-    delivery_zone = models.CharField(max_length=20, default='mainland')
+    delivery_zone = models.CharField(max_length=100, blank=True)
     cart = models.JSONField()  # list of {product_id, size_id, add_on_ids, quantity, spice_level}
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -44,6 +44,7 @@ class Order(models.Model):
     delivery_name = models.CharField(max_length=150)
     delivery_phone = models.CharField(max_length=20)
     delivery_address = models.CharField(max_length=255, help_text="Delivery address within Lagos")
+    delivery_area = models.CharField(max_length=100, blank=True, help_text="Selected delivery zone/location")
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)

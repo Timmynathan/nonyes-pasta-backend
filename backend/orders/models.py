@@ -6,6 +6,22 @@ from django.db import models
 from store.models import Product, ProductSize, AddOn
 
 
+class DeliveryLocation(models.Model):
+    """Editable delivery zones/fees, managed from the Django admin."""
+    group = models.CharField(max_length=100, help_text="e.g. Island (Before Sangotedo), Mainland")
+    name = models.CharField(max_length=100, unique=True, help_text="Location shown to the customer")
+    fee = models.PositiveIntegerField(help_text="Delivery fee in Naira")
+    group_order = models.PositiveIntegerField(default=0, help_text="Order the group appears (lower = higher up)")
+    sort_order = models.PositiveIntegerField(default=0, help_text="Order within the group")
+    is_active = models.BooleanField(default=True, help_text="Untick to hide from checkout")
+
+    class Meta:
+        ordering = ['group_order', 'sort_order', 'name']
+
+    def __str__(self):
+        return f"{self.name} — ₦{self.fee}"
+
+
 class PendingOrder(models.Model):
     """Holds cart + customer details until Paystack webhook confirms payment."""
     reference = models.CharField(max_length=100, unique=True)

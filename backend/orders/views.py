@@ -19,7 +19,7 @@ from . import paystack
 from .models import Order, OrderItem, PendingOrder
 from .serializers import OrderSerializer
 
-from .delivery import get_delivery_fee, DELIVERY_ZONES
+from .delivery import get_delivery_fee, get_zones
 
 
 class DeliveryZonesView(APIView):
@@ -27,14 +27,7 @@ class DeliveryZonesView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        data = [
-            {
-                'group': z['group'],
-                'locations': [{'name': name, 'fee': fee} for name, fee in z['locations']],
-            }
-            for z in DELIVERY_ZONES
-        ]
-        return Response(data)
+        return Response(get_zones())
 
 
 class InitiateCheckoutView(APIView):

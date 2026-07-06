@@ -85,13 +85,25 @@ DELIVERY_ZONES = [
     },
 ]
 
-# Flat lookup: location name -> fee
-DELIVERY_FEES = {
-    loc: fee for zone in DELIVERY_ZONES for (loc, fee) in zone["locations"]
-}
-
 DEFAULT_FEE = 5500
 
 
 def get_delivery_fee(location):
-    return DELIVERY_FEES.get(location, DEFAULT_FEE)
+    """Fee for a location, read from the DB (admin-editable)."""
+    from .models import DeliveryLocation
+    obj = DeliveryLocation.objects.filter(name=location, is_active=True).first()
+    return obj.fee if obj else DEFAULT_FEE
+
+
+def get_zones():
+    """Grouped active delivery locations for the checkout UI, from the DB."""
+    from .models import DeliveryLocation
+    grouped = {}
+    order = {}
+    for loc in DeliveryLocation.objects.filter(is_active=True):
+        grouped.setdefault(loc.group, []).append({'name': loc.name, 'fee': loc.fee})
+        order.setdefault(loc.group, loc.group_order)
+    return [
+        {'group': g, 'locations': grouped[g]}
+        for g in sorted(grouped, key=lambda g: order[g])
+    ]

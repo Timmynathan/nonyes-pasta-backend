@@ -30,11 +30,11 @@ class DeliveryZonesView(APIView):
         return Response(get_zones())
 
 
-class InitiateCheckoutView(APIView):
+class PlaceOrderView(APIView):
     """
-    Validates the cart, stores details in PendingOrder, initialises a
-    Paystack transaction and returns the authorization_url.
-    No Order row is created here — that happens in the webhook.
+    Bank-transfer checkout: validates the cart and creates the Order directly
+    (status = pending payment). The customer then transfers to the displayed
+    account and confirms via WhatsApp. Nonye reconciles the transfer manually.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -53,51 +53,63 @@ class InitiateCheckoutView(APIView):
         if not all([email, delivery_name, delivery_phone, delivery_address, cart]):
             return Response({'detail': 'All fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate cart items and calculate total
+        delivery_fee = get_delivery_fee(delivery_zone)
+        order = Order.objects.create(
+            delivery_name=delivery_name,
+            delivery_phone=delivery_phone,
+            delivery_address=delivery_address,
+            delivery_area=delivery_zone,
+            delivery_fee=delivery_fee,
+            status=Order.STATUS_PENDING,
+        )
+
         subtotal = 0
+        item_lines = []
         for item in cart:
             try:
                 product = Product.objects.get(pk=item['product_id'])
             except Product.DoesNotExist:
+                order.delete()
                 return Response({'detail': f"Product {item['product_id']} not found."}, status=400)
 
-            unit_price = product.base_price
+            size = None
+            size_label = ''
+            unit_price = float(product.base_price)
             if item.get('size_id'):
                 try:
                     size = ProductSize.objects.get(pk=item['size_id'], product=product)
-                    unit_price = size.price
+                    unit_price = float(size.price)
+                    size_label = f" ({size.name})"
                 except ProductSize.DoesNotExist:
+                    order.delete()
                     return Response({'detail': 'Invalid size.'}, status=400)
 
             add_ons = AddOn.objects.filter(pk__in=item.get('add_on_ids', []))
-            unit_price = float(unit_price) + sum(float(a.price) for a in add_ons)
-            subtotal += unit_price * item.get('quantity', 1)
+            unit_price += sum(float(a.price) for a in add_ons)
+            qty = item.get('quantity', 1)
+            line_total = unit_price * qty
+            subtotal += line_total
+            spice = item.get('spice_level', 'mild')
 
-        delivery_fee = get_delivery_fee(delivery_zone)
-        total = subtotal + delivery_fee
-        reference = f"NP-{uuid.uuid4().hex[:12]}"
+            order_item = OrderItem.objects.create(
+                order=order, product=product, size=size, quantity=qty,
+                unit_price=unit_price, line_total=line_total, spice_level=spice,
+            )
+            order_item.add_ons.set(add_ons)
+            spice_label = ' 🌶🌶' if spice == 'extra' else ''
+            item_lines.append(f"  • {qty}x {product.name}{size_label}{spice_label} — ₦{line_total:,.0f}")
 
-        PendingOrder.objects.create(
-            reference=reference,
-            email=email,
-            delivery_name=delivery_name,
-            delivery_phone=delivery_phone,
-            delivery_address=delivery_address,
-            delivery_zone=delivery_zone,
-            cart=cart,
-        )
+        order.subtotal = subtotal
+        order.total = subtotal + delivery_fee
+        order.save()
 
-        frontend_origin = request.headers.get('Origin', f"{request.scheme}://{request.get_host()}")
-        callback_url = f"{frontend_origin}/track/{reference}"
+        # Notify Nonye — order placed, awaiting bank transfer
+        try:
+            _send_owner_notification(order, email, item_lines, awaiting_payment=True)
+        except Exception:
+            pass
 
-        paystack_data = paystack.initialize_transaction(
-            email=email,
-            amount_naira=total,
-            reference=reference,
-            callback_url=callback_url,
-        )
-
-        return Response({'authorization_url': paystack_data['data']['authorization_url'], 'reference': reference})
+        return Response({'order_number': order.order_number}, status=status.HTTP_201_CREATED)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -192,12 +204,19 @@ class PaystackWebhookView(APIView):
         return Response({'detail': 'Order created.'}, status=200)
 
 
-def _send_owner_notification(order, customer_email, item_lines):
+def _send_owner_notification(order, customer_email, item_lines, awaiting_payment=False):
     # OWNER_EMAIL may be a single address or a comma-separated list
     owner_emails = [e.strip() for e in settings.OWNER_EMAIL.split(',') if e.strip()]
 
+    header = "New order — AWAITING TRANSFER 💸" if awaiting_payment else "New order received! 🎉"
+    footer = (
+        "Customer will pay by bank transfer and send their receipt on WhatsApp. Please confirm the transfer before preparing."
+        if awaiting_payment
+        else f"Payment confirmed via Paystack. Reference: {order.paystack_reference}"
+    )
+
     items_text = '\n'.join(item_lines)
-    message = f"""New order received! 🎉
+    message = f"""{header}
 
 Order Number : {order.order_number}
 Customer     : {order.delivery_name}
@@ -211,9 +230,9 @@ Items:
 
 Subtotal     : ₦{order.subtotal:,.0f}
 Delivery Fee : ₦{order.delivery_fee:,.0f}
-TOTAL PAID   : ₦{order.total:,.0f}
+TOTAL        : ₦{order.total:,.0f}
 
-Payment confirmed via Paystack. Reference: {order.paystack_reference}
+{footer}
 """
     # Telegram first — it uses HTTPS and works even where outbound SMTP is blocked
     _send_telegram(message)

@@ -19,8 +19,8 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(DeliveryLocation)
 class DeliveryLocationAdmin(admin.ModelAdmin):
-    list_display = ('name', 'group', 'fee', 'is_active')
-    list_editable = ('fee', 'is_active')          # edit prices right in the list
-    list_filter = ('group', 'is_active')
+    list_display = ('name', 'group', 'fee', 'arrange_privately', 'is_active')
+    list_editable = ('fee', 'arrange_privately', 'is_active')   # edit right in the list
+    list_filter = ('group', 'arrange_privately', 'is_active')
     search_fields = ('name', 'group')
     list_per_page = 100

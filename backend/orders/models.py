@@ -10,7 +10,8 @@ class DeliveryLocation(models.Model):
     """Editable delivery zones/fees, managed from the Django admin."""
     group = models.CharField(max_length=100, help_text="e.g. Island (Before Sangotedo), Mainland")
     name = models.CharField(max_length=100, unique=True, help_text="Location shown to the customer")
-    fee = models.PositiveIntegerField(help_text="Delivery fee in Naira")
+    fee = models.PositiveIntegerField(default=0, help_text="Delivery fee in Naira (ignored if 'arrange privately' is on)")
+    arrange_privately = models.BooleanField(default=False, help_text="Customer arranges & pays for delivery themselves (no fixed fee)")
     group_order = models.PositiveIntegerField(default=0, help_text="Order the group appears (lower = higher up)")
     sort_order = models.PositiveIntegerField(default=0, help_text="Order within the group")
     is_active = models.BooleanField(default=True, help_text="Untick to hide from checkout")

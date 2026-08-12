@@ -89,10 +89,12 @@ DEFAULT_FEE = 5500
 
 
 def get_delivery_fee(location):
-    """Fee for a location, read from the DB (admin-editable)."""
+    """Fee for a location, read from the DB (admin-editable). 0 if arranged privately."""
     from .models import DeliveryLocation
     obj = DeliveryLocation.objects.filter(name=location, is_active=True).first()
-    return obj.fee if obj else DEFAULT_FEE
+    if not obj:
+        return DEFAULT_FEE
+    return 0 if obj.arrange_privately else obj.fee
 
 
 def get_zones():
@@ -101,7 +103,11 @@ def get_zones():
     grouped = {}
     order = {}
     for loc in DeliveryLocation.objects.filter(is_active=True):
-        grouped.setdefault(loc.group, []).append({'name': loc.name, 'fee': loc.fee})
+        grouped.setdefault(loc.group, []).append({
+            'name': loc.name,
+            'fee': 0 if loc.arrange_privately else loc.fee,
+            'arrange_privately': loc.arrange_privately,
+        })
         order.setdefault(loc.group, loc.group_order)
     return [
         {'group': g, 'locations': grouped[g]}
